@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One 2 One - AI Form Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: #f8f9fa;
+      font-family: 'Noto Sans JP', 'Inter', -apple-system, sans-serif;
+      display: flex;
+      color: #1f2937;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 0;
+      height: 100vh;
+      position: fixed;
+      left: 0; top: 0;
+      z-index: 100;
+    }
+
+    .logo { padding: 0 20px 24px; border-bottom: 1px solid #f3f4f6; margin-bottom: 20px; }
+    .logo-main { font-size: 20px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 4px; }
+    .logo-main span { color: #ef4444; }
+    .logo-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; letter-spacing: 0.5px; }
+
+    .nav { flex: 1; padding: 0 12px; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 8px; cursor: pointer;
+      font-size: 14px; font-weight: 500; color: #6b7280;
+      transition: all 0.15s ease; margin-bottom: 4px; text-decoration: none; border: none; background: none; width: 100%;
+    }
+    .nav-item:hover { background: #f9fafb; color: #374151; }
+    .nav-item.active { background: #fef2f2; color: #dc2626; }
+    .nav-icon { display: flex; align-items: center; justify-content: center; width: 20px; }
+
+    /* Agent Control */
+    .agent-control { padding: 16px 20px; border-top: 1px solid #f3f4f6; margin-top: auto; }
+    .agent-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .agent-label { font-size: 13px; font-weight: 600; color: #374151; }
+    .agent-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #16a34a; }
+    .agent-status.paused { color: #9ca3af; }
+    .status-indicator { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; animation: pulse 2s infinite; }
+    .status-indicator.paused { background: #9ca3af; animation: none; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .agent-btn {
+      width: 100%; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s ease; border: 1px solid #e5e7eb;
+      background: #fff; color: #6b7280; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .agent-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+    .agent-btn.start { background: #dc2626; color: #fff; border-color: #dc2626; }
+    .agent-btn.start:hover { background: #b91c1c; }
+
+    /* Main Content */
+    .main { flex: 1; padding: 24px 32px; overflow-y: auto; margin-left: 220px; min-height: 100vh; }
+
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+    .header-left h1 { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .header-left p { font-size: 13px; color: #9ca3af; }
+    .header-actions { display: flex; gap: 10px; }
+
+    .btn {
+      padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    }
+    .btn-secondary { background: #fff; border: 1px solid #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
+    .btn-primary { background: #dc2626; border: 1px solid #dc2626; color: #fff; }
+    .btn-primary:hover { background: #b91c1c; }
+    .btn-danger { background: #fff; border: 1px solid #fca5a5; color: #dc2626; }
+    .btn-danger:hover { background: #fef2f2; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-icon { padding: 6px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; display: inline-flex; align-items: center; color: #6b7280; }
+    .btn-icon:hover { background: #f9fafb; }
+
+    /* Stats */
+    .stats-row { display: flex; gap: 32px; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid #e5e7eb; }
+    .stat-item { display: flex; flex-direction: column; }
+    .stat-label { font-size: 12px; color: #9ca3af; margin-bottom: 4px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #111827; font-family: 'Inter', sans-serif; line-height: 1; }
+    .stat-value.alert { color: #dc2626; }
+
+    /* Table */
+    .table-container { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th { text-align: left; padding: 14px 20px; font-size: 12px; font-weight: 600; color: #6b7280; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .table td { padding: 16px 20px; font-size: 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    .table tr:last-child td { border-bottom: none; }
+    .table tbody tr:hover { background: #fafafa; }
+
+    .company-cell { display: flex; flex-direction: column; gap: 2px; }
+    .company-name { font-weight: 500; color: #111827; }
+    .company-domain { font-size: 12px; color: #9ca3af; }
+
+    .form-type { display: inline-flex; padding: 4px 10px; background: #f3f4f6; border-radius: 4px; font-size: 12px; color: #4b5563; font-weight: 500; }
+
+    .content-preview { color: #6b7280; max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .content-preview.warning { color: #dc2626; font-weight: 500; }
+
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .status-badge.ready { background: #f3f4f6; color: #6b7280; }
+    .status-badge.sending { background: #dbeafe; color: #2563eb; }
+    .status-badge.completed { background: #dcfce7; color: #16a34a; }
+    .status-badge.stopped { background: #fee2e2; color: #dc2626; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Footer Notice */
+    .footer-notice {
+      display: flex; align-items: center; gap: 10px; margin-top: 16px;
+      padding: 12px 16px; background: #fefce8; border: 1px solid #fef08a;
+      border-radius: 8px; font-size: 12px; color: #854d0e;
+    }
+    .notice-icon { color: #ca8a04; display: flex; align-items: center; flex-shrink: 0; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4); z-index: 200; justify-content: center; align-items: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 12px; width: 560px; max-height: 80vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .modal-header {
+      padding: 20px 24px; border-bottom: 1px solid #e5e7eb;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h2 { font-size: 18px; font-weight: 700; }
+    .modal-close { background: none; border: none; cursor: pointer; color: #9ca3af; font-size: 20px; padding: 4px; }
+    .modal-close:hover { color: #374151; }
+    .modal-body { padding: 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; }
+
+    /* Form styles */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; font-family: inherit; color: #111827; background: #fff;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      outline: none; border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-group .hint { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+
+    /* Cards for settings */
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .card-title { font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 16px; }
+
+    /* Message template card */
+    .template-card {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px;
+      margin-bottom: 12px; transition: all 0.15s ease;
+    }
+    .template-card:hover { border-color: #d1d5db; }
+    .template-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .template-card-name { font-size: 14px; font-weight: 600; color: #111827; }
+    .template-card-actions { display: flex; gap: 6px; }
+    .template-card-body { font-size: 13px; color: #6b7280; line-height: 1.6; white-space: pre-wrap; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 24px; }
+    .tab-item {
+      padding: 10px 20px; font-size: 14px; font-weight: 500; color: #6b7280; cursor: pointer;
+      border-bottom: 2px solid transparent; transition: all 0.15s ease; background: none; border-top: none; border-left: none; border-right: none;
+    }
+    .tab-item:hover { color: #374151; }
+    .tab-item.active { color: #dc2626; border-bottom-color: #dc2626; }
+
+    /* CSV upload area */
+    .upload-area {
+      border: 2px dashed #d1d5db; border-radius: 8px; padding: 32px; text-align: center;
+      cursor: pointer; transition: all 0.15s ease; margin-bottom: 16px;
+    }
+    .upload-area:hover { border-color: #dc2626; background: #fef2f2; }
+    .upload-area p { font-size: 14px; color: #6b7280; margin-top: 8px; }
+    .upload-area .upload-icon { color: #9ca3af; margin-bottom: 8px; }
+
+    /* Checkbox */
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #dc2626; }
+    .checkbox-row label { font-size: 13px; color: #374151; cursor: pointer; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 48px 20px; color: #9ca3af; }
+    .empty-state svg { margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    /* Tag / badge for template selection */
+    .tag { display: inline-flex; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: #eff6ff; color: #2563eb; }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-main">One <span>2</span> One</div>
+      <div class="logo-sub">AI Form Agent</div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-page="queue" onclick="showPage('queue')">
+        <span class="nav-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </span>
+        送信キュー
+      </button>
+      <button class="nav-item" data-page="history" onclick="showPage('history')">
+        <span class="nav-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </span>
+        送信履歴
+      </button>
+      <button class="nav-item" data-page="analytics" onclick="showPage('analytics')">
+        <span class="nav-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </span>
+        分析
+      </button>
+      <button class="nav-item" data-page="settings" onclick="showPage('settings')">
+        <span class="nav-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </span>
+        設定
+      </button>
+    </nav>
+
+    <div class="agent-control">
+      <div class="agent-header">
+        <span class="agent-label">エージェント</span>
+        <span class="agent-status" id="agentStatus">
+          <span class="status-indicator" id="statusIndicator"></span>
+          <span id="statusText">稼働中</span>
+        </span>
+      </div>
+      <button class="agent-btn" id="agentBtn" onclick="toggleAgent()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" id="agentIcon">
+          <rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>
+        </svg>
+        <span id="agentBtnText">一時停止</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main" id="mainContent"></main>
+
+  <!-- Add Contact Modal -->
+  <div class="modal-overlay" id="addContactModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>企業を追加</h2>
+        <button class="modal-close" onclick="closeModal('addContactModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="tabs" id="addTabs">
+          <button class="tab-item active" onclick="switchAddTab('manual')">手入力</button>
+          <button class="tab-item" onclick="switchAddTab('csv')">CSV取り込み</button>
+        </div>
+
+        <div id="addTabManual">
+          <div class="form-row">
+            <div class="form-group">
+              <label>会社名 *</label>
+              <input type="text" id="contactCompany" placeholder="株式会社〇〇">
+            </div>
+            <div class="form-group">
+              <label>担当者名</label>
+              <input type="text" id="contactName" placeholder="山田 太郎">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>フォームURL *</label>
+              <input type="url" id="contactUrl" placeholder="https://example.com/contact">
+            </div>
+            <div class="form-group">
+              <label>フォーム種別</label>
+              <select id="contactFormType">
+                <option value="問い合わせ">問い合わせ</option>
+                <option value="資料請求">資料請求</option>
+                <option value="採用">採用</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>メッセージテンプレート</label>
+            <select id="contactTemplate"></select>
+          </div>
+          <div class="form-group">
+            <label>メモ</label>
+            <textarea id="contactMemo" rows="2" placeholder="任意のメモ"></textarea>
+          </div>
+        </div>
+
+        <div id="addTabCSV" style="display:none">
+          <div class="upload-area" id="csvDropArea">
+            <div class="upload-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <p><strong>CSVファイルをドラッグ&ドロップ</strong></p>
+            <p style="font-size:12px;color:#9ca3af;margin-top:4px">またはクリックしてファイルを選択</p>
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none">
+          </div>
+          <div class="form-group">
+            <label>CSVのメッセージテンプレート（一括適用）</label>
+            <select id="csvTemplate"></select>
+          </div>
+          <div style="font-size:12px;color:#9ca3af;background:#f9fafb;padding:12px;border-radius:6px;">
+            <strong>CSV形式：</strong> 会社名, 担当者名, フォームURL, フォーム種別, メモ<br>
+            1行目がヘッダーの場合は自動でスキップされます
+          </div>
+          <div id="csvPreview" style="margin-top:12px"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('addContactModal')">キャンセル</button>
+        <button class="btn btn-primary" id="addContactBtn" onclick="addContact()">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Template Modal -->
+  <div class="modal-overlay" id="templateModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="templateModalTitle">メッセージテンプレート作成</h2>
+        <button class="modal-close" onclick="closeModal('templateModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>テンプレート名 *</label>
+          <input type="text" id="tplName" placeholder="例：AI導入提案">
+        </div>
+        <div class="form-group">
+          <label>件名</label>
+          <input type="text" id="tplSubject" placeholder="例：{{company}}様へのご提案">
+          <div class="hint">変数: {{company}} {{name}} {{sender_name}} {{sender_company}}</div>
+        </div>
+        <div class="form-group">
+          <label>本文 *</label>
+          <textarea id="tplBody" rows="8" placeholder="メッセージ本文を入力..."></textarea>
+          <div class="hint">変数: {{company}} {{name}} {{sender_name}} {{sender_company}} {{sender_email}} {{sender_phone}}</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('templateModal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveTemplate()">保存</button>
+      </div>
+      <input type="hidden" id="tplEditId">
+    </div>
+  </div>
+
+  <!-- Contact Detail Modal -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="detailTitle">企業詳細</h2>
+        <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+      <div class="modal-footer" id="detailFooter"></div>
+    </div>
+  </div>
+
+  <script>
+    // ===================== DATA LAYER =====================
+    const STORAGE_KEYS = {
+      contacts: 'o2o_contacts',
+      templates: 'o2o_templates',
+      settings: 'o2o_settings',
+      history: 'o2o_history',
+    };
+
+    function loadData(key) {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEYS[key])) || null; } catch { return null; }
+    }
+    function saveData(key, data) {
+      localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(data));
+    }
+
+    function getContacts() { return loadData('contacts') || []; }
+    function saveContacts(c) { saveData('contacts', c); }
+    function getTemplates() { return loadData('templates') || []; }
+    function saveTemplates(t) { saveData('templates', t); }
+    function getHistory() { return loadData('history') || []; }
+    function saveHistory(h) { saveData('history', h); }
+
+    function getSettings() {
+      return loadData('settings') || {
+        senderName: '',
+        senderCompany: '',
+        senderEmail: '',
+        senderPhone: '',
+        senderDepartment: '',
+        autoStop: true,
+      };
+    }
+    function saveSettings(s) { saveData('settings', s); }
+
+    function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+    // ===================== AGENT STATE =====================
+    let isRunning = true;
+
+    function toggleAgent() {
+      isRunning = !isRunning;
+      const btn = document.getElementById('agentBtn');
+      const btnText = document.getElementById('agentBtnText');
+      const icon = document.getElementById('agentIcon');
+      const status = document.getElementById('agentStatus');
+      const indicator = document.getElementById('statusIndicator');
+      const statusTextEl = document.getElementById('statusText');
+
+      if (isRunning) {
+        btn.classList.remove('start');
+        btnText.textContent = '一時停止';
+        icon.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+        status.classList.remove('paused');
+        indicator.classList.remove('paused');
+        statusTextEl.textContent = '稼働中';
+      } else {
+        btn.classList.add('start');
+        btnText.textContent = '再開';
+        icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+        status.classList.add('paused');
+        indicator.classList.add('paused');
+        statusTextEl.textContent = '停止中';
+      }
+    }
+
+    // ===================== NAVIGATION =====================
+    let currentPage = 'queue';
+
+    function showPage(page) {
+      currentPage = page;
+      document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.toggle('active', n.dataset.page === page);
+      });
+      renderPage();
+    }
+
+    function renderPage() {
+      const main = document.getElementById('mainContent');
+      switch (currentPage) {
+        case 'queue': renderQueue(main); break;
+        case 'history': renderHistory(main); break;
+        case 'analytics': renderAnalytics(main); break;
+        case 'settings': renderSettings(main); break;
+      }
+    }
+
+    // ===================== QUEUE PAGE =====================
+    function renderQueue(el) {
+      const contacts = getContacts();
+      const history = getHistory();
+      const queue = contacts.filter(c => c.status !== 'completed' && c.status !== 'stopped');
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todaySent = history.filter(h => h.sentAt && h.sentAt.startsWith(todayStr)).length;
+      const totalSent = history.length;
+      const waiting = contacts.filter(c => c.status === 'ready').length;
+      const stopped = contacts.filter(c => c.status === 'stopped').length;
+
+      el.innerHTML = `
+        <header class="header">
+          <div class="header-left">
+            <h1>送信キュー</h1>
+            <p>AIエージェントが自動で最適化・送信します</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="renderPage()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              更新
+            </button>
+            <button class="btn btn-primary" onclick="openAddContact()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              企業を追加
+            </button>
+            ${contacts.filter(c => c.status === 'ready' && c.templateId).length > 0 ? `
+            <button class="btn btn-primary" onclick="sendAllReady()" style="background:#16a34a;border-color:#16a34a">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              一括送信 (${contacts.filter(c => c.status === 'ready' && c.templateId).length})
+            </button>` : ''}
+          </div>
+        </header>
+
+        <div class="stats-row">
+          <div class="stat-item"><span class="stat-label">本日の送信</span><span class="stat-value">${todaySent}</span></div>
+          <div class="stat-item"><span class="stat-label">累計送信</span><span class="stat-value">${totalSent}</span></div>
+          <div class="stat-item"><span class="stat-label">待機中</span><span class="stat-value">${waiting}</span></div>
+          <div class="stat-item"><span class="stat-label">送信中止</span><span class="stat-value alert">${stopped}</span></div>
+        </div>
+
+        <div class="table-container">
+          <table class="table">
+            <thead>
+              <tr><th>企業</th><th>フォーム種別</th><th>テンプレート</th><th>ステータス</th><th></th></tr>
+            </thead>
+            <tbody>
+              ${contacts.length === 0 ? `<tr><td colspan="5"><div class="empty-state"><p>まだ企業が追加されていません。「企業を追加」から始めましょう。</p></div></td></tr>` :
+                contacts.map(c => `
+                  <tr>
+                    <td>
+                      <div class="company-cell">
+                        <span class="company-name">${esc(c.company)}</span>
+                        <span class="company-domain">${esc(c.name || '')}</span>
+                      </div>
+                    </td>
+                    <td><span class="form-type">${esc(c.formType)}</span></td>
+                    <td><span class="content-preview">${esc(getTemplateName(c.templateId))}</span></td>
+                    <td><span class="status-badge ${c.status}">${statusBadge(c.status)}</span></td>
+                    <td style="text-align:right">
+                      <button class="btn-icon" onclick="showDetail('${c.id}')" title="詳細">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="footer-notice">
+          <span class="notice-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </span>
+          <span><strong>送信遵守モード有効：</strong>営業メール禁止・問い合わせ拒否の記載を検出した場合、自動的に送信を中止します。</span>
+        </div>
+      `;
+    }
+
+    function statusBadge(status) {
+      const dot = '<span class="status-dot"></span>';
+      const map = { ready: '送信準備', sending: '送信中', completed: '送信完了', stopped: '送信停止' };
+      return dot + (map[status] || status);
+    }
+
+    function getTemplateName(id) {
+      if (!id) return '未設定';
+      const t = getTemplates().find(t => t.id === id);
+      return t ? t.name : '未設定';
+    }
+
+    // ===================== HISTORY PAGE =====================
+    function renderHistory(el) {
+      const history = getHistory();
+      el.innerHTML = `
+        <header class="header">
+          <div class="header-left"><h1>送信履歴</h1><p>過去の送信結果を確認できます</p></div>
+        </header>
+        <div class="table-container">
+          <table class="table">
+            <thead><tr><th>企業</th><th>テンプレート</th><th>送信日時</th><th>ステータス</th></tr></thead>
+            <tbody>
+              ${history.length === 0 ? '<tr><td colspan="4"><div class="empty-state"><p>まだ送信履歴はありません</p></div></td></tr>' :
+                history.slice().reverse().map(h => `
+                  <tr>
+                    <td><div class="company-cell"><span class="company-name">${esc(h.company)}</span><span class="company-domain">${esc(h.name || '')}</span></div></td>
+                    <td>${esc(h.templateName || '')}</td>
+                    <td style="font-size:13px;color:#6b7280">${h.sentAt ? new Date(h.sentAt).toLocaleString('ja-JP') : '-'}</td>
+                    <td><span class="status-badge ${h.result}">${statusBadge(h.result)}</span></td>
+                  </tr>
+                `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // ===================== ANALYTICS PAGE =====================
+    function renderAnalytics(el) {
+      const history = getHistory();
+      const contacts = getContacts();
+      const completed = history.filter(h => h.result === 'completed').length;
+      const stopped = history.filter(h => h.result === 'stopped').length;
+      const total = history.length;
+
+      // Per-template stats
+      const tplStats = {};
+      history.forEach(h => {
+        const name = h.templateName || '不明';
+        if (!tplStats[name]) tplStats[name] = { sent: 0, stopped: 0 };
+        if (h.result === 'completed') tplStats[name].sent++;
+        else if (h.result === 'stopped') tplStats[name].stopped++;
+      });
+
+      // Daily stats (last 7 days)
+      const dailyStats = {};
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        dailyStats[d.toISOString().slice(0,10)] = 0;
+      }
+      history.forEach(h => {
+        if (h.sentAt) {
+          const day = h.sentAt.slice(0, 10);
+          if (day in dailyStats) dailyStats[day]++;
+        }
+      });
+
+      el.innerHTML = `
+        <header class="header">
+          <div class="header-left"><h1>分析</h1><p>送信パフォーマンスの概要</p></div>
+        </header>
+        <div class="stats-row">
+          <div class="stat-item"><span class="stat-label">総送信数</span><span class="stat-value">${total}</span></div>
+          <div class="stat-item"><span class="stat-label">送信成功</span><span class="stat-value">${completed}</span></div>
+          <div class="stat-item"><span class="stat-label">送信停止</span><span class="stat-value alert">${stopped}</span></div>
+          <div class="stat-item"><span class="stat-label">成功率</span><span class="stat-value">${total > 0 ? Math.round(completed / total * 100) : 0}%</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">直近7日間の送信数</div>
+          <div style="display:flex;align-items:end;gap:8px;height:120px;padding-top:8px;">
+            ${Object.entries(dailyStats).map(([day, count]) => {
+              const max = Math.max(...Object.values(dailyStats), 1);
+              const h = Math.max(count / max * 100, 4);
+              return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <span style="font-size:11px;color:#6b7280;font-weight:600">${count}</span>
+                <div style="width:100%;height:${h}px;background:#dc2626;border-radius:4px;min-height:4px;"></div>
+                <span style="font-size:10px;color:#9ca3af">${day.slice(5)}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">テンプレート別実績</div>
+          ${Object.keys(tplStats).length === 0 ? '<p style="font-size:13px;color:#9ca3af">データなし</p>' :
+            Object.entries(tplStats).map(([name, s]) => `
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px">
+                <span style="font-weight:500">${esc(name)}</span>
+                <span>送信 ${s.sent} / 停止 ${s.stopped}</span>
+              </div>
+            `).join('')}
+        </div>
+      `;
+    }
+
+    // ===================== SETTINGS PAGE =====================
+    function renderSettings(el) {
+      const settings = getSettings();
+      const templates = getTemplates();
+
+      el.innerHTML = `
+        <header class="header">
+          <div class="header-left"><h1>設定</h1><p>送信者情報とメッセージテンプレートの管理</p></div>
+        </header>
+
+        <div class="card">
+          <div class="card-title">送信者情報</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>氏名</label>
+              <input type="text" id="setName" value="${esc(settings.senderName)}" placeholder="山田 太郎">
+              <div class="hint">姓と名の間にスペースを入れてください</div>
+            </div>
+            <div class="form-group">
+              <label>会社名</label>
+              <input type="text" id="setCompany" value="${esc(settings.senderCompany)}" placeholder="株式会社〇〇">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>メールアドレス</label>
+              <input type="email" id="setEmail" value="${esc(settings.senderEmail)}" placeholder="info@example.com">
+            </div>
+            <div class="form-group">
+              <label>電話番号</label>
+              <input type="tel" id="setPhone" value="${esc(settings.senderPhone)}" placeholder="03-1234-5678">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>部署・役職</label>
+            <input type="text" id="setDept" value="${esc(settings.senderDepartment || '')}" placeholder="営業部 マネージャー">
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="setAutoStop" ${settings.autoStop ? 'checked' : ''}>
+            <label for="setAutoStop">送信遵守モード（営業拒否検出時に自動停止）</label>
+          </div>
+          <div style="margin-top:16px">
+            <button class="btn btn-primary" onclick="saveSenderSettings()">保存</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            メッセージテンプレート
+            <button class="btn btn-primary btn-sm" onclick="openTemplateModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新規作成
+            </button>
+          </div>
+          <div id="templateList">
+            ${templates.length === 0 ? '<div class="empty-state"><p>テンプレートがありません。「新規作成」で追加してください。</p></div>' :
+              templates.map(t => `
+                <div class="template-card">
+                  <div class="template-card-header">
+                    <span class="template-card-name">${esc(t.name)}</span>
+                    <div class="template-card-actions">
+                      <button class="btn btn-secondary btn-sm" onclick="editTemplate('${t.id}')">編集</button>
+                      <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.id}')">削除</button>
+                    </div>
+                  </div>
+                  ${t.subject ? `<div style="font-size:12px;color:#9ca3af;margin-bottom:4px">件名: ${esc(t.subject)}</div>` : ''}
+                  <div class="template-card-body">${esc(t.body.length > 200 ? t.body.slice(0,200) + '...' : t.body)}</div>
+                </div>
+              `).join('')}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="color:#dc2626">データ管理</div>
+          <p style="font-size:13px;color:#6b7280;margin-bottom:12px">エクスポート・インポートやデータの初期化ができます</p>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary" onclick="exportData()">データエクスポート</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('importFileInput').click()">データインポート</button>
+            <button class="btn btn-danger" onclick="resetData()">全データ削除</button>
+          </div>
+          <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importData(event)">
+        </div>
+      `;
+    }
+
+    function saveSenderSettings() {
+      const settings = getSettings();
+      settings.senderName = document.getElementById('setName').value.trim();
+      settings.senderCompany = document.getElementById('setCompany').value.trim();
+      settings.senderEmail = document.getElementById('setEmail').value.trim();
+      settings.senderPhone = document.getElementById('setPhone').value.trim();
+      settings.senderDepartment = document.getElementById('setDept').value.trim();
+      settings.autoStop = document.getElementById('setAutoStop').checked;
+      saveSettings(settings);
+      showToast('設定を保存しました');
+    }
+
+    // ===================== TEMPLATES =====================
+    function openTemplateModal(editId) {
+      document.getElementById('tplEditId').value = editId || '';
+      if (editId) {
+        const t = getTemplates().find(t => t.id === editId);
+        if (!t) return;
+        document.getElementById('templateModalTitle').textContent = 'テンプレート編集';
+        document.getElementById('tplName').value = t.name;
+        document.getElementById('tplSubject').value = t.subject || '';
+        document.getElementById('tplBody').value = t.body;
+      } else {
+        document.getElementById('templateModalTitle').textContent = 'メッセージテンプレート作成';
+        document.getElementById('tplName').value = '';
+        document.getElementById('tplSubject').value = '';
+        document.getElementById('tplBody').value = '';
+      }
+      openModal('templateModal');
+    }
+
+    function editTemplate(id) { openTemplateModal(id); }
+
+    function saveTemplate() {
+      const name = document.getElementById('tplName').value.trim();
+      const subject = document.getElementById('tplSubject').value.trim();
+      const body = document.getElementById('tplBody').value.trim();
+      const editId = document.getElementById('tplEditId').value;
+
+      if (!name || !body) { showToast('テンプレート名と本文は必須です', true); return; }
+
+      const templates = getTemplates();
+      if (editId) {
+        const idx = templates.findIndex(t => t.id === editId);
+        if (idx >= 0) { templates[idx].name = name; templates[idx].subject = subject; templates[idx].body = body; }
+      } else {
+        templates.push({ id: genId(), name, subject, body });
+      }
+      saveTemplates(templates);
+      closeModal('templateModal');
+      renderPage();
+      showToast(editId ? 'テンプレートを更新しました' : 'テンプレートを作成しました');
+    }
+
+    function deleteTemplate(id) {
+      if (!confirm('このテンプレートを削除しますか？')) return;
+      const templates = getTemplates().filter(t => t.id !== id);
+      saveTemplates(templates);
+      renderPage();
+      showToast('テンプレートを削除しました');
+    }
+
+    // ===================== ADD CONTACT =====================
+    let csvParsedData = [];
+    let currentAddTab = 'manual';
+
+    function openAddContact() {
+      currentAddTab = 'manual';
+      csvParsedData = [];
+      document.getElementById('contactCompany').value = '';
+      document.getElementById('contactName').value = '';
+      document.getElementById('contactUrl').value = '';
+      document.getElementById('contactFormType').value = '問い合わせ';
+      document.getElementById('contactMemo').value = '';
+      document.getElementById('csvPreview').innerHTML = '';
+      populateTemplateSelects();
+      switchAddTab('manual');
+      openModal('addContactModal');
+    }
+
+    function populateTemplateSelects() {
+      const templates = getTemplates();
+      const opts = '<option value="">-- 選択してください --</option>' +
+        templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+      document.getElementById('contactTemplate').innerHTML = opts;
+      document.getElementById('csvTemplate').innerHTML = opts;
+    }
+
+    function switchAddTab(tab) {
+      currentAddTab = tab;
+      document.querySelectorAll('#addTabs .tab-item').forEach((t, i) => {
+        t.classList.toggle('active', (i === 0 && tab === 'manual') || (i === 1 && tab === 'csv'));
+      });
+      document.getElementById('addTabManual').style.display = tab === 'manual' ? '' : 'none';
+      document.getElementById('addTabCSV').style.display = tab === 'csv' ? '' : 'none';
+      document.getElementById('addContactBtn').textContent = tab === 'manual' ? '追加' : 'インポート';
+    }
+
+    function addContact() {
+      if (currentAddTab === 'manual') {
+        const company = document.getElementById('contactCompany').value.trim();
+        const url = document.getElementById('contactUrl').value.trim();
+        if (!company || !url) { showToast('会社名とフォームURLは必須です', true); return; }
+
+        const contacts = getContacts();
+        contacts.push({
+          id: genId(),
+          company,
+          name: document.getElementById('contactName').value.trim(),
+          url,
+          formType: document.getElementById('contactFormType').value,
+          templateId: document.getElementById('contactTemplate').value || '',
+          memo: document.getElementById('contactMemo').value.trim(),
+          status: 'ready',
+          createdAt: new Date().toISOString(),
+        });
+        saveContacts(contacts);
+        closeModal('addContactModal');
+        renderPage();
+        showToast('企業を追加しました');
+      } else {
+        if (csvParsedData.length === 0) { showToast('CSVファイルを読み込んでください', true); return; }
+        const templateId = document.getElementById('csvTemplate').value;
+        const contacts = getContacts();
+        csvParsedData.forEach(row => {
+          contacts.push({
+            id: genId(),
+            company: row.company || '',
+            name: row.name || '',
+            url: row.url || '',
+            formType: row.formType || '問い合わせ',
+            templateId: templateId,
+            memo: row.memo || '',
+            status: 'ready',
+            createdAt: new Date().toISOString(),
+          });
+        });
+        saveContacts(contacts);
+        closeModal('addContactModal');
+        renderPage();
+        showToast(`${csvParsedData.length}件の企業をインポートしました`);
+        csvParsedData = [];
+      }
+    }
+
+    // CSV parsing
+    function setupCSV() {
+      const dropArea = document.getElementById('csvDropArea');
+      const fileInput = document.getElementById('csvFileInput');
+      if (!dropArea) return;
+
+      dropArea.addEventListener('click', () => fileInput.click());
+      dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.style.borderColor = '#dc2626'; });
+      dropArea.addEventListener('dragleave', () => { dropArea.style.borderColor = '#d1d5db'; });
+      dropArea.addEventListener('drop', e => {
+        e.preventDefault();
+        dropArea.style.borderColor = '#d1d5db';
+        if (e.dataTransfer.files.length) handleCSVFile(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener('change', e => {
+        if (e.target.files.length) handleCSVFile(e.target.files[0]);
+      });
+    }
+
+    function handleCSVFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length === 0) return;
+
+        // Detect header
+        const first = lines[0].toLowerCase();
+        const hasHeader = first.includes('会社') || first.includes('company') || first.includes('名前') || first.includes('url');
+        const dataLines = hasHeader ? lines.slice(1) : lines;
+
+        csvParsedData = dataLines.map(line => {
+          const cols = parseCSVLine(line);
+          return {
+            company: (cols[0] || '').trim(),
+            name: (cols[1] || '').trim(),
+            url: (cols[2] || '').trim(),
+            formType: (cols[3] || '問い合わせ').trim(),
+            memo: (cols[4] || '').trim(),
+          };
+        }).filter(r => r.company);
+
+        const preview = document.getElementById('csvPreview');
+        preview.innerHTML = `
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px">${csvParsedData.length}件のデータを検出</div>
+          <div class="table-container" style="max-height:200px;overflow-y:auto">
+            <table class="table">
+              <thead><tr><th>会社名</th><th>担当者</th><th>URL</th><th>種別</th></tr></thead>
+              <tbody>
+                ${csvParsedData.slice(0, 10).map(r => `
+                  <tr><td>${esc(r.company)}</td><td>${esc(r.name)}</td><td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis">${esc(r.url)}</td><td>${esc(r.formType)}</td></tr>
+                `).join('')}
+                ${csvParsedData.length > 10 ? `<tr><td colspan="4" style="color:#9ca3af;text-align:center">他 ${csvParsedData.length - 10}件...</td></tr>` : ''}
+              </tbody>
+            </table>
+          </div>
+        `;
+      };
+      reader.readAsText(file);
+    }
+
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+          else if (ch === '"') { inQuotes = false; }
+          else { current += ch; }
+        } else {
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === ',') { result.push(current); current = ''; }
+          else { current += ch; }
+        }
+      }
+      result.push(current);
+      return result;
+    }
+
+    // ===================== CONTACT DETAIL =====================
+    function showDetail(id) {
+      const c = getContacts().find(c => c.id === id);
+      if (!c) return;
+
+      const templates = getTemplates();
+      const tpl = templates.find(t => t.id === c.templateId);
+      const settings = getSettings();
+      const preview = tpl ? expandTemplate(tpl, c, settings) : '';
+
+      document.getElementById('detailTitle').textContent = c.company;
+      document.getElementById('detailBody').innerHTML = `
+        <div class="form-row">
+          <div class="form-group"><label>会社名</label><input type="text" id="detCompany" value="${esc(c.company)}"></div>
+          <div class="form-group"><label>担当者名</label><input type="text" id="detName" value="${esc(c.name || '')}"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>フォームURL</label><input type="url" id="detUrl" value="${esc(c.url)}"></div>
+          <div class="form-group"><label>フォーム種別</label>
+            <select id="detFormType">
+              ${['問い合わせ','資料請求','採用','その他'].map(v => `<option value="${v}" ${c.formType === v ? 'selected' : ''}>${v}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>メッセージテンプレート</label>
+          <select id="detTemplate" onchange="updateDetailPreview('${c.id}')">
+            <option value="">-- 選択してください --</option>
+            ${templates.map(t => `<option value="${t.id}" ${c.templateId === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ステータス</label>
+          <select id="detStatus">
+            ${['ready','sending','completed','stopped'].map(v => `<option value="${v}" ${c.status === v ? 'selected' : ''}>${statusLabel(v)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>メモ</label><textarea id="detMemo" rows="2">${esc(c.memo || '')}</textarea></div>
+        ${preview ? `
+          <div style="margin-top:12px;padding:12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+            <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:8px">送信プレビュー</div>
+            ${tpl.subject ? `<div style="font-size:13px;font-weight:500;margin-bottom:4px">件名: ${esc(expandVars(tpl.subject, c, settings))}</div>` : ''}
+            <div style="font-size:13px;color:#374151;white-space:pre-wrap;line-height:1.7" id="detPreviewBody">${esc(preview)}</div>
+          </div>
+        ` : ''}
+      `;
+      document.getElementById('detailFooter').innerHTML = `
+        <button class="btn btn-danger" onclick="deleteContact('${c.id}')">削除</button>
+        <button class="btn btn-secondary" onclick="dryRunSend('${c.id}')">プレビュー送信</button>
+        <button class="btn btn-primary" onclick="realSend('${c.id}')" style="background:#16a34a;border-color:#16a34a">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          本番送信
+        </button>
+        <button class="btn btn-primary" onclick="saveContact('${c.id}')">保存</button>
+      `;
+      openModal('detailModal');
+    }
+
+    function statusLabel(s) {
+      return { ready: '送信準備', sending: '送信中', completed: '送信完了', stopped: '送信停止' }[s] || s;
+    }
+
+    function saveContact(id) {
+      const contacts = getContacts();
+      const idx = contacts.findIndex(c => c.id === id);
+      if (idx < 0) return;
+      contacts[idx].company = document.getElementById('detCompany').value.trim();
+      contacts[idx].name = document.getElementById('detName').value.trim();
+      contacts[idx].url = document.getElementById('detUrl').value.trim();
+      contacts[idx].formType = document.getElementById('detFormType').value;
+      contacts[idx].templateId = document.getElementById('detTemplate').value;
+      contacts[idx].status = document.getElementById('detStatus').value;
+      contacts[idx].memo = document.getElementById('detMemo').value.trim();
+      saveContacts(contacts);
+      closeModal('detailModal');
+      renderPage();
+      showToast('企業情報を更新しました');
+    }
+
+    function deleteContact(id) {
+      if (!confirm('この企業を削除しますか？')) return;
+      saveContacts(getContacts().filter(c => c.id !== id));
+      closeModal('detailModal');
+      renderPage();
+      showToast('企業を削除しました');
+    }
+
+    // ===================== REAL SEND (API) =====================
+    function buildSendData(contact) {
+      const tpl = getTemplates().find(t => t.id === contact.templateId);
+      if (!tpl) return null;
+      const settings = getSettings();
+      return {
+        senderName: settings.senderName,
+        senderCompany: settings.senderCompany,
+        senderEmail: settings.senderEmail,
+        senderPhone: settings.senderPhone,
+        senderDepartment: settings.senderDepartment,
+        subject: tpl.subject ? expandVars(tpl.subject, contact, settings) : '',
+        body: expandTemplate(tpl, contact, settings),
+      };
+    }
+
+    function validateSendData() {
+      const s = getSettings();
+      const missing = [];
+      if (!s.senderName) missing.push('氏名');
+      if (!s.senderCompany) missing.push('会社名');
+      if (!s.senderEmail) missing.push('メールアドレス');
+      if (missing.length > 0) {
+        showToast(`設定画面で送信者情報を入力してください（${missing.join('・')}）`, true);
+        return false;
+      }
+      return true;
+    }
+
+    async function dryRunSend(id) {
+      const contacts = getContacts();
+      const c = contacts.find(c => c.id === id);
+      if (!c) return;
+      if (!c.templateId) { showToast('テンプレートが設定されていません', true); return; }
+      if (!validateSendData()) return;
+
+      const data = buildSendData(c);
+      if (!data) { showToast('テンプレートが見つかりません', true); return; }
+
+      showToast('フォームを解析中...（数秒かかります）');
+      try {
+        const res = await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: c.url, data, dryRun: true }),
+        });
+        let result;
+        try { result = await res.json(); } catch { result = { success: false, message: 'サーバーからの応答を解析できませんでした' }; }
+
+        if (result.blocked) {
+          showToast('営業お断りの記載を検出しました', true);
+          return;
+        }
+
+        if (!result.success) {
+          // Show error with detected field info if available
+          let errorHtml = `<div style="margin-top:16px;padding:12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:13px;color:#dc2626">
+            <strong>エラー:</strong> ${esc(result.message || result.error || 'エラーが発生しました')}
+          </div>`;
+          if (result.analysis) {
+            errorHtml += `<div style="margin-top:8px;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;color:#6b7280">
+              <strong>検出されたフィールド:</strong><br>
+              ${(result.analysis.fields || []).map(f => `input: name="${esc(f.name)}" label="${esc(f.label)}" placeholder="${esc(f.placeholder)}"`).join('<br>')}
+              ${(result.analysis.textareas || []).map(f => `textarea: name="${esc(f.name)}" label="${esc(f.label)}"`).join('<br>')}
+            </div>`;
+          }
+          document.getElementById('detailBody').innerHTML += errorHtml;
+          showToast(result.message || 'エラーが発生しました', true);
+          return;
+        }
+
+        // Show screenshot preview in modal
+        const foundInfo = result.formFoundBy === 'direct' ? '' :
+          `<div style="padding:6px 12px;background:#dcfce7;font-size:12px;color:#16a34a;border-bottom:1px solid #e5e7eb">フォームページを自動検出: ${esc(result.formUrl || '')}</div>`;
+        const fillInfo = result.fillResults ? result.fillResults.map(f =>
+          `<span style="display:inline-block;margin:2px 4px;padding:2px 8px;border-radius:4px;font-size:11px;background:${f.filled ? '#dcfce7;color:#16a34a' : '#fee2e2;color:#dc2626'}">${esc(f.fieldType)}${f.filled ? ' OK' : ' NG'}</span>`
+        ).join('') : '';
+        document.getElementById('detailBody').innerHTML += `
+          <div style="margin-top:16px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+            ${foundInfo}
+            <div style="padding:8px 12px;background:#f9fafb;font-size:12px;font-weight:600;color:#6b7280;border-bottom:1px solid #e5e7eb">
+              フォーム入力プレビュー ${fillInfo}
+            </div>
+            ${result.screenshot ? `<img src="${result.screenshot}" style="width:100%;display:block">` : '<p style="padding:12px;color:#9ca3af">スクリーンショットなし</p>'}
+          </div>
+        `;
+        showToast('プレビューを表示しました');
+      } catch (err) {
+        showToast('サーバーに接続できません。node server.js を起動してください。', true);
+      }
+    }
+
+    async function realSend(id) {
+      if (!confirm('この企業のフォームに本番送信しますか？')) return;
+
+      const contacts = getContacts();
+      const c = contacts.find(c => c.id === id);
+      if (!c) return;
+      if (!c.templateId) { showToast('テンプレートが設定されていません', true); return; }
+      if (!validateSendData()) return;
+
+      const data = buildSendData(c);
+      if (!data) { showToast('テンプレートが見つかりません', true); return; }
+
+      // Update status to sending
+      c.status = 'sending';
+      saveContacts(contacts);
+      renderPage();
+      showToast(`${c.company} に送信中...（数秒かかります）`);
+      closeModal('detailModal');
+
+      try {
+        const res = await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: c.url, data, dryRun: false }),
+        });
+        let result;
+        try { result = await res.json(); } catch { result = { success: false, message: 'サーバーからの応答を解析できませんでした' }; }
+
+        const updatedContacts = getContacts();
+        const uc = updatedContacts.find(c => c.id === id);
+
+        const history = getHistory();
+        const tpl = getTemplates().find(t => t.id === c.templateId);
+
+        if (result.blocked) {
+          if (uc) { uc.status = 'stopped'; saveContacts(updatedContacts); }
+          history.push({
+            id: genId(), contactId: id, company: c.company, name: c.name,
+            templateName: tpl ? tpl.name : '', body: data.body,
+            result: 'stopped', sentAt: new Date().toISOString(),
+          });
+          saveHistory(history);
+          renderPage();
+          showToast('営業お断りの記載を検出 - 送信停止', true);
+          return;
+        }
+
+        if (result.success) {
+          if (uc) { uc.status = 'completed'; saveContacts(updatedContacts); }
+          history.push({
+            id: genId(), contactId: id, company: c.company, name: c.name,
+            templateName: tpl ? tpl.name : '', body: data.body,
+            result: 'completed', sentAt: new Date().toISOString(),
+          });
+          saveHistory(history);
+          renderPage();
+          showToast(`${c.company} への送信が完了しました`);
+        } else {
+          if (uc) { uc.status = 'ready'; saveContacts(updatedContacts); }
+          renderPage();
+          showToast(result.message || 'エラーが発生しました', true);
+        }
+      } catch (err) {
+        const updatedContacts = getContacts();
+        const uc = updatedContacts.find(c => c.id === id);
+        if (uc) { uc.status = 'ready'; saveContacts(updatedContacts); }
+        renderPage();
+        showToast('サーバーに接続できません。node server.js を起動してください。', true);
+      }
+    }
+
+    // Send a single contact without confirmation (for batch use)
+    async function sendOne(id) {
+      const contacts = getContacts();
+      const c = contacts.find(c => c.id === id);
+      if (!c) return;
+
+      const data = buildSendData(c);
+      if (!data) return;
+
+      c.status = 'sending';
+      saveContacts(contacts);
+      renderPage();
+
+      try {
+        const res = await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: c.url, data, dryRun: false }),
+        });
+        let result;
+        try { result = await res.json(); } catch { result = { success: false }; }
+
+        const updatedContacts = getContacts();
+        const uc = updatedContacts.find(c => c.id === id);
+        const history = getHistory();
+        const tpl = getTemplates().find(t => t.id === c.templateId);
+
+        if (result.blocked) {
+          if (uc) { uc.status = 'stopped'; saveContacts(updatedContacts); }
+          history.push({ id: genId(), contactId: id, company: c.company, name: c.name, templateName: tpl ? tpl.name : '', body: data.body, result: 'stopped', sentAt: new Date().toISOString() });
+          saveHistory(history);
+        } else if (result.success) {
+          if (uc) { uc.status = 'completed'; saveContacts(updatedContacts); }
+          history.push({ id: genId(), contactId: id, company: c.company, name: c.name, templateName: tpl ? tpl.name : '', body: data.body, result: 'completed', sentAt: new Date().toISOString() });
+          saveHistory(history);
+        } else {
+          if (uc) { uc.status = 'ready'; saveContacts(updatedContacts); }
+        }
+        renderPage();
+        return result;
+      } catch {
+        const updatedContacts = getContacts();
+        const uc = updatedContacts.find(c => c.id === id);
+        if (uc) { uc.status = 'ready'; saveContacts(updatedContacts); }
+        renderPage();
+        return { success: false };
+      }
+    }
+
+    // Batch send all "ready" contacts
+    async function sendAllReady() {
+      const contacts = getContacts().filter(c => c.status === 'ready' && c.templateId);
+      if (contacts.length === 0) { showToast('送信可能な企業がありません', true); return; }
+      if (!validateSendData()) return;
+      if (!confirm(`${contacts.length}件の企業に一括送信します。よろしいですか？`)) return;
+
+      showToast(`一括送信開始: ${contacts.length}件`);
+      let success = 0, fail = 0, stopped = 0;
+
+      for (let i = 0; i < contacts.length; i++) {
+        const c = contacts[i];
+        showToast(`送信中... (${i + 1}/${contacts.length}) ${c.company}`);
+        const result = await sendOne(c.id);
+        if (result && result.success) success++;
+        else if (result && result.blocked) stopped++;
+        else fail++;
+        // Wait between sends
+        await new Promise(r => setTimeout(r, 2000 + Math.random() * 3000));
+      }
+
+      showToast(`一括送信完了: 成功${success}件 / 停止${stopped}件 / 失敗${fail}件`);
+    }
+
+    // ===================== TEMPLATE EXPANSION =====================
+    function expandVars(text, contact, settings) {
+      return text
+        .replace(/\{\{company\}\}/g, contact.company || '')
+        .replace(/\{\{name\}\}/g, contact.name || '')
+        .replace(/\{\{sender_name\}\}/g, settings.senderName || '')
+        .replace(/\{\{sender_company\}\}/g, settings.senderCompany || '')
+        .replace(/\{\{sender_email\}\}/g, settings.senderEmail || '')
+        .replace(/\{\{sender_phone\}\}/g, settings.senderPhone || '')
+        .replace(/\{\{sender_department\}\}/g, settings.senderDepartment || '');
+    }
+
+    function expandTemplate(tpl, contact, settings) {
+      return expandVars(tpl.body, contact, settings);
+    }
+
+    // ===================== DATA EXPORT/IMPORT =====================
+    function exportData() {
+      const data = {
+        contacts: getContacts(),
+        templates: getTemplates(),
+        settings: getSettings(),
+        history: getHistory(),
+        exportedAt: new Date().toISOString(),
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `one2one_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('データをエクスポートしました');
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.contacts) saveContacts(data.contacts);
+          if (data.templates) saveTemplates(data.templates);
+          if (data.settings) saveSettings(data.settings);
+          if (data.history) saveHistory(data.history);
+          renderPage();
+          showToast('データをインポートしました');
+        } catch {
+          showToast('無効なファイル形式です', true);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function resetData() {
+      if (!confirm('全データを削除しますか？この操作は元に戻せません。')) return;
+      Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+      renderPage();
+      showToast('全データを削除しました');
+    }
+
+    // ===================== MODALS =====================
+    function openModal(id) {
+      document.getElementById(id).classList.add('show');
+      if (id === 'addContactModal') setTimeout(setupCSV, 50);
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    // Close modal on backdrop click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.classList.remove('show');
+      });
+    });
+
+    // ===================== TOAST =====================
+    function showToast(msg, isError) {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      const div = document.createElement('div');
+      div.className = 'toast';
+      div.textContent = msg;
+      Object.assign(div.style, {
+        position: 'fixed', bottom: '24px', right: '24px', padding: '12px 20px',
+        background: isError ? '#dc2626' : '#111827', color: '#fff', borderRadius: '8px',
+        fontSize: '13px', fontWeight: '500', zIndex: '300', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        animation: 'fadeIn 0.2s ease',
+      });
+      document.body.appendChild(div);
+      setTimeout(() => { div.style.opacity = '0'; div.style.transition = 'opacity 0.3s'; setTimeout(() => div.remove(), 300); }, 2500);
+    }
+
+    // ===================== UTILS =====================
+    function esc(str) {
+      if (!str) return '';
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // ===================== INIT =====================
+    renderPage();
+  </script>
+</body>
+</html>
