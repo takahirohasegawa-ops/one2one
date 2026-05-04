@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "public/**", "use": "@vercel/static" },
+    { "src": "api/send.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/send", "dest": "/api/send.js" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ],
+  "functions": {
+    "api/send.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}

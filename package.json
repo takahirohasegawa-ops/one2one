@@ -11,7 +11,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@sparticuz/chromium": "^148.0.0",
     "express": "^5.2.1",
-    "puppeteer": "^24.42.0"
+    "puppeteer": "^24.42.0",
+    "puppeteer-core": "^24.42.0"
   }
 }
